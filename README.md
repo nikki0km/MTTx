@@ -1,3 +1,6 @@
+# Troc — Metamorphic Testing Framework for Database Transaction Isolation Levels
+
+Troc is an automated bug detection tool for DBMS transaction isolation based on **Metamorphic Testing**. It randomly generates database schemas, populates tables with data, constructs concurrent transactions, and applies metamorphic relations to automatically uncover bugs in how DBMS engines implement transaction isolation.
 
 ## Prerequisites
 
