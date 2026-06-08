@@ -56,7 +56,7 @@ public class MySQLTable extends Table {
         // 随机决定是否为该列添加 AUTO_INCREMENT 约束
         boolean isAutoIncrement = false;
         String autoIncrement = "";
-        if (dataType.isNumeric() && Randomly.baseInt() == 1 && !hasAutoIncrementColumn) { // 只有数值类型可以添加
+        if (dataType.isNumeric() && Randomly.getBooleanWithRatherLowProbability() && !hasAutoIncrementColumn) { // 只有数值类型可以添加
                                                                                           // AUTO_INCREMENT，且表不能已经有
                                                                                           // AUTO_INCREMENT 列
             autoIncrement = " AUTO_INCREMENT";
