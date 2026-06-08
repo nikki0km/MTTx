@@ -2,7 +2,7 @@
 # Bug List
 
 | ID | DBMS    | Link | Status    | Isolation Bug |  备注 |
-|----|---------|------|-----------|---------------|---------|--------|
+|----|---------|------|-----------|---------------|---------|
 | 1  | MySQL   | [bug#119801](https://bugs.mysql.com/bug.php?id=119801) | 不一致  | Yes           | |
 | 2  | MySQL   | [bug#119632](https://bugs.mysql.com/bug.php?id=119632) | 重复  | Yes           |[与bug#107066一样](https://bugs.mysql.com/bug.php?id=107066&thanks=4)，自增列  |
 | 3  | MySQL   | [bug#119648](https://bugs.mysql.com/bug.php?id=119648) | 误报  | Yes           | [与bug#117835一样](https://bugs.mysql.com/bug.php?id=117835&thanks=4)   |
