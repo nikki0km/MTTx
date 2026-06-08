@@ -6,7 +6,7 @@ Troc is an automated bug detection tool for DBMS transaction isolation based on 
 
 - **JDK** 8 or higher
 - **Maven** 3.6+
-- A running target database instance (MySQL 5.7+ / MariaDB 10.2+ / TiDB 4.0+ / PostgreSQL 12+)
+- A running target database instance (MySQL 5.7+ / MariaDB 10.2+ / TiDB 4.0+ )
 
 ## Build
 
