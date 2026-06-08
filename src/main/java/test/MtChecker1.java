@@ -26,7 +26,7 @@ public class MtChecker1 {
 
     public void checkFixedOrder(String scheduleStr) { // 预设测试用例
         ArrayList<StatementCell> submittedOrder = new ArrayList<>();
-
+        TableTool.allCase++;
         String[] parts = scheduleStr.trim().split("-");
         int tx1StmtIndex = 0, tx2StmtIndex = 0;
 

@@ -117,7 +117,7 @@ public class StatementCell { // StatementCell 类：表示一条 SQL 语句，�
                     whereIdx = stmt.indexOf("WHERE");
                     if (whereIdx == -1) {
                         wherePrefix = stmt;
-                        whereClause = "TRUE";
+                        whereClause = (realType == StatementType.SELECT) ? "" : "TRUE";
                     } else {
                         wherePrefix = stmt.substring(0, whereIdx - 1);
                         whereClause = stmt.substring(whereIdx + 6);
@@ -208,7 +208,11 @@ public class StatementCell { // StatementCell 类：表示一条 SQL 语句，�
     }
 
     public void recomputeStatement() { // 根据 wherePrefix、whereClause 和 forPostfix 重新生成 SQL 语句
-        this.statement = wherePrefix + " WHERE " + whereClause + forPostfix;
+        if (whereClause.isEmpty()) {
+            this.statement = wherePrefix + forPostfix;
+        } else {
+            this.statement = wherePrefix + " WHERE " + whereClause + forPostfix;
+        }
     }
 
     public String toString() { // 返回语句的字符串表示，格式为 事务ID-语句ID，如果被阻塞或中止，则添加标记。

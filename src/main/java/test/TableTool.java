@@ -21,7 +21,6 @@ public class TableTool {
     static public final Randomly rand = new Randomly();
     static public final BugReport bugReport = new BugReport(); // 错误报告工具
     static public final BugReport2 bugReport2 = new BugReport2(); // 错误报告工具2.由于改变表数据的bug输出
-    static public final BugReport3 bugReport3 = new BugReport3(); // 错误报告工具3.两种串行化情况
     static public int txPair = 0; // 记录已测试的事务对数量
     static public int allCase = 0; // 记录总测试用例数量
     static public int skipCase = 0; // 记录跳过的测试用例数量 (统计无效或无法执行的测试用例)
@@ -612,68 +611,84 @@ public class TableTool {
     // 在 TableTool.java 中
 
     static void cloneTable(String tableName, String newTableName) {
-        // 务必定义为 null 以便 finally 关闭
         Statement stmt = null;
-        try {
-            log.info("Dropping table {} if exists...", newTableName);
-            stmt = conn.createStatement();
-
-            boolean dropped = false;
-            for (int i = 0; i < 3; i++) {
+        ResultSet rs = null;
+        boolean success = false;
+        for (int attempt = 0; attempt < 5 && !success; attempt++) {
+            if (attempt > 0) {
+                log.info("Clone table retry {}/5, waiting for lingering locks to release...", attempt);
                 try {
-                    stmt.execute(String.format("DROP TABLE IF EXISTS %s", newTableName));
-                    dropped = true;
-                    break;
-                } catch (SQLException e) {
-                    if (e.getMessage().contains("Lock wait timeout")) {
-                        log.warn("DROP TABLE locked, retrying... ({}/3)", i + 1);
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException ignored) {
-                        }
-                    } else {
-                        throw e;
-                    }
+                    Thread.sleep(3000);
+                } catch (InterruptedException ignored) {
                 }
             }
-
-            // 如果重试 3 次依然失败，抛出异常终止测试
-            if (!dropped) {
-                throw new RuntimeException(
-                        "Failed to drop table " + newTableName + " after retries. Deadlock detected.");
-            }
-
-            stmt.close();
-            log.info("Dropped original table");
-
-            stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(String.format("SHOW CREATE TABLE %s", tableName));
-            rs.next();
-            String createSQL = rs.getString("Create Table");
-            rs.close();
-            stmt.close();
-
-            createSQL = createSQL.replace("\n", "")
-                    .replace("CREATE TABLE `" + tableName + "`", "CREATE TABLE `" + newTableName + "`");
-
-            stmt = conn.createStatement();
-            stmt.execute(createSQL);
-            stmt.close();
-
-            // 复制数据
-            stmt = conn.createStatement();
-            stmt.execute(String.format("INSERT INTO %s SELECT * FROM %s", newTableName, tableName));
-            stmt.close();
-
-        } catch (SQLException e) {
-            log.error("Clone table failed. Possible lock contention.", e);
-            e.printStackTrace();
-        } finally {
             try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (Exception e) {
+                log.info("Dropping table {} if exists...", newTableName);
+                stmt = conn.createStatement();
+                stmt.execute(String.format("DROP TABLE IF EXISTS %s", newTableName));
+                stmt.close();
+
+                // 验证 DROP 是否真的生效（MDL残留锁可能导致 DROP 静默失败）
+                stmt = conn.createStatement();
+                rs = stmt.executeQuery(String.format(
+                        "SELECT COUNT(*) FROM information_schema.tables " +
+                                "WHERE table_schema = DATABASE() AND table_name = '%s'",
+                        newTableName));
+                rs.next();
+                if (rs.getInt(1) > 0) {
+                    throw new SQLException("Table " + newTableName + " still exists after DROP (MDL lock held)");
+                }
+                rs.close();
+                stmt.close();
+                log.info("Dropped original table");
+
+                stmt = conn.createStatement();
+                rs = stmt.executeQuery(String.format("SHOW CREATE TABLE %s", tableName));
+                rs.next();
+                String createSQL = rs.getString("Create Table");
+                rs.close();
+                stmt.close();
+
+                createSQL = createSQL.replace("\r", "").replace("\n", "")
+                        .replaceFirst("(?i)CREATE TABLE [`\"]?" + tableName + "[`\"]?",
+                                "CREATE TABLE `" + newTableName + "`");
+
+                stmt = conn.createStatement();
+                stmt.execute(createSQL);
+                stmt.close();
+
+                // 复制数据
+                stmt = conn.createStatement();
+                stmt.execute(String.format("INSERT INTO %s SELECT * FROM %s", newTableName, tableName));
+                stmt.close();
+
+                success = true;
+            } catch (SQLException e) {
+                log.warn("Clone table attempt {} failed: {}", attempt + 1, e.getMessage());
+                if (e.getMessage().contains("already exists") ||
+                        e.getMessage().contains("Lock wait timeout") ||
+                        e.getMessage().contains("still exists after DROP")) {
+                    continue;
+                }
+                log.error("Clone table failed.", e);
+                e.printStackTrace();
+                break;
+            } finally {
+                try {
+                    if (rs != null)
+                        rs.close();
+                } catch (Exception ignored) {
+                }
+                try {
+                    if (stmt != null)
+                        stmt.close();
+                } catch (Exception ignored) {
+                }
             }
+        }
+        if (!success) {
+            throw new RuntimeException(
+                    "Clone table " + tableName + " -> " + newTableName + " failed after all retries.");
         }
     }
 
@@ -740,22 +755,25 @@ public class TableTool {
 
             DatabaseMetaData metaData = conn.getMetaData();
 
-            // 获取主键和唯一索引列（受保护列）
-            Set<String> protectedColumns = new HashSet<>();
+            // 获取主键列（不被保护，允许修改以暴露隔离异常）
+            Set<String> pkColumns = new HashSet<>();
             rs = metaData.getPrimaryKeys(null, null, tableName);
             while (rs.next()) {
-                protectedColumns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                pkColumns.add(rs.getString("COLUMN_NAME").toLowerCase());
             }
             rs.close();
 
+            // 获取唯一索引列（排除主键）
+            Set<String> protectedColumns = new HashSet<>();
             rs = metaData.getIndexInfo(null, null, tableName, true, false);
             while (rs.next()) {
                 String col = rs.getString("COLUMN_NAME");
-                if (col != null)
+                if (col != null && !pkColumns.contains(col.toLowerCase()))
                     protectedColumns.add(col.toLowerCase());
             }
             rs.close();
-            log.info("Protected columns (PK + Unique): {}", protectedColumns);
+            log.info("PK columns (modifiable): {}", pkColumns);
+            log.info("Protected columns (Unique, non-PK): {}", protectedColumns);
 
             List<String> columnNames = new ArrayList<>();
             List<String> selectExpressions = new ArrayList<>();
@@ -905,20 +923,24 @@ public class TableTool {
 
             DatabaseMetaData meta = conn.getMetaData();
 
-            Set<String> protectedCols = new HashSet<>();
-
+            // 获取主键列（不被保护，允许修改以暴露隔离异常）
+            Set<String> pkCols = new HashSet<>();
             rs = meta.getPrimaryKeys(null, null, tableName);
             while (rs.next())
-                protectedCols.add(rs.getString("COLUMN_NAME").toLowerCase());
+                pkCols.add(rs.getString("COLUMN_NAME").toLowerCase());
             rs.close();
 
+            // 获取唯一索引列（排除主键）
+            Set<String> protectedCols = new HashSet<>();
             rs = meta.getIndexInfo(null, null, tableName, true, false);
             while (rs.next()) {
                 String c = rs.getString("COLUMN_NAME");
-                if (c != null)
+                if (c != null && !pkCols.contains(c.toLowerCase()))
                     protectedCols.add(c.toLowerCase());
             }
             rs.close();
+            log.info("PK columns (modifiable): {}", pkCols);
+            log.info("Protected columns (Unique, non-PK): {}", protectedCols);
 
             List<String> cols = new ArrayList<>();
             List<String> exprs = new ArrayList<>();

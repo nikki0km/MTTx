@@ -804,18 +804,18 @@ public abstract class Table {
     }
 
     public String genSelectAllStatement() {
-        StringBuilder sb = new StringBuilder("SELECT * FROM mtest");
+        StringBuilder sb = new StringBuilder("SELECT * FROM " + tableName);
 
-        // 40% 概率添加 LIMIT
-        boolean addLimit = Randomly.getPercentage(40);
+        // // 40% 概率添加 LIMIT
+        // boolean addLimit = Randomly.getPercentage(40);
         // 10% 概率添加 FOR UPDATE
         boolean addForUpdate = Randomly.getPercentage(10);
 
-        if (addLimit) {
-            // 生成一个足够大的LIMIT值，使其实际上不限制结果
-            int limitValue = 100 + Randomly.getNextInt(0, 100);
-            sb.append(" LIMIT ").append(limitValue);
-        }
+        // if (addLimit) {
+        // // 生成一个足够大的LIMIT值，使其实际上不限制结果
+        // int limitValue = 100 + Randomly.getNextInt(0, 100);
+        // sb.append(" LIMIT ").append(limitValue);
+        // }
 
         if (addForUpdate) {
             sb.append(" FOR UPDATE");

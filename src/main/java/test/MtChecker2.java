@@ -83,6 +83,13 @@ public class MtChecker2 {
         TxnPairExecutor2 executor1 = new TxnPairExecutor2(scheduleClone(schedule), tx1, tx2);
         TxnPairResult execResult1 = executor1.getResult();
 
+        // 如果 tx1 和 tx2 死锁，忽略此用例
+        if (execResult1.isDeadBlock()) {
+            TableTool.skipCase++;
+            log.info("Deadlock detected for tx1/tx2, skipping this case");
+            return true;
+        }
+
         TableTool.recoverOriginalTable();
         bugInfo = "";
 
