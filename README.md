@@ -1,4 +1,44 @@
 
+## Prerequisites
+
+- **JDK** 8 or higher
+- **Maven** 3.6+
+- A running target database instance (MySQL 5.7+ / MariaDB 10.2+ / TiDB 4.0+ / PostgreSQL 12+)
+
+## Build
+
+```bash
+mvn clean package
+```
+
+The build artifact is `target/test-1.0-SNAPSHOT.jar`. Dependencies are copied to `target/lib/`.
+
+## Usage
+
+```bash
+java -jar target/test-1.0-SNAPSHOT.jar \
+    --dbms     mysql \
+    --host     127.0.0.1 \
+    --port     3306 \
+    --username root \
+    --password root \
+    --db       test \
+    --table    troc \
+    --mode     mt3
+```
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--dbms` | Yes | Target database: `mysql` / `mariadb` / `tidb` / `postgres` |
+| `--host` | Yes | Database host address |
+| `--port` | Yes | Database port |
+| `--username` | Yes | Database username |
+| `--password` | Yes | Database password |
+| `--db` | Yes | Test database name (will be auto-created and dropped — do NOT use a production database) |
+| `--table` | Yes | Test table name prefix |
+| `--mode` | Yes | Metamorphic mode: `mt1` / `mt2` / `mt3` / `mt4` |
 
 
 # Bug List
