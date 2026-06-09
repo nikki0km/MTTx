@@ -771,7 +771,7 @@ public abstract class Table {
         Transaction tx = new Transaction(txId, isolationLevel, txConn); // 创建事务对象
         setTxMode(txConn); // 设置为悲观事务，如果是TiDB
         setIsolationLevel(txConn, isolationLevel); // 设置隔离级别
-        int n = Randomly.getNextInt(TableTool.TxSizeMin, TableTool.TxSizeMax);
+        int n = Randomly.getNextInt(1, 3);
         // 随机生成事务大小
         ArrayList<StatementCell> statementList = new ArrayList<>();
         int currentStatementId = 0; // 用于跟踪当前语句的 statementId
